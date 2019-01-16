@@ -50,7 +50,7 @@ print "\nListing objects in the pool"
 print "------------------"
 
 
-n=10
+n=1000
 with rados.WriteOpCtx(ioctx) as wop:
     for i in range(0,n):
         ioctx.set_omap(wop, (str(i),), ("val"+str(i),));
@@ -58,7 +58,7 @@ with rados.WriteOpCtx(ioctx) as wop:
 
 
 with rados.ReadOpCtx(ioctx) as rop:
-    iter, r = ioctx.get_omap_vals(rop, "", "", 10);
+    iter, r = ioctx.get_omap_vals(rop, "", "", n);
     ioctx.operate_read_op(rop, "test");
     for x in iter:
         print(x)
