@@ -3,7 +3,7 @@
 # julien.collet@cern.ch 
 # omap benchmarks, 2019
 
-import rados, sys
+import rados, sys, time
 
 print("Running omap benchmarking tests");
 
@@ -50,18 +50,25 @@ print "\nListing objects in the pool"
 print "------------------"
 
 
-n=1000
+n=10000
+
+st = time.time()
 with rados.WriteOpCtx(ioctx) as wop:
     for i in range(0,n):
         ioctx.set_omap(wop, (str(i),), ("val"+str(i),));
         ioctx.operate_write_op(wop, "test");
 
 
+wr = time.time();
+
 with rados.ReadOpCtx(ioctx) as rop:
     iter, r = ioctx.get_omap_vals(rop, "", "", n);
     ioctx.operate_read_op(rop, "test");
-    for x in iter:
-        print(x)
+
+rd = time.time();
+
+print "set " + str(n) + " omap pairs in " + str(wr - st) + "s"
+print "got " + str(n) + " omap pairs in " + str(rd - wr) + "s"
 
 print "\nClosing the connection."
 ioctx.close();
