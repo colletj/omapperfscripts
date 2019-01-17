@@ -15,48 +15,14 @@ n = int(sys.argv[1]);
 
 cluster = rados.Rados(conffile='/etc/ceph/ceph.conf')
 print "\nlibrados version: " + str(cluster.version())
-print "Will attempt to connect to: " + str(cluster.conf_get('mon initial members'))
 
 cluster.connect()
-print "\nCluster ID: " + cluster.get_fsid()
+print "Cluster ID: " + cluster.get_fsid()
 
-print "\n\nCluster Statistics"
-print "=================="
-cluster_stats = cluster.get_cluster_stats()
-
-for key, value in cluster_stats.iteritems():
-    print key, value
-
-print "\n\nPool Operations"
-print "==============="
-
-print "\nAvailable Pools"
-print "----------------"
-pools = cluster.list_pools()
-
-for pool in pools:
-        print pool
-
-print "\nCreate 'omap-test' Pool"
-print "------------------"
 if not (cluster.pool_exists('omap-test') == True):
    cluster.create_pool('omap-test')
 
-print "\nPool named 'omap-test' exists: " + str(cluster.pool_exists('omap-test'))
-print "\nVerify 'omap-test' Pool Exists"
-print "-------------------------"
-pools = cluster.list_pools()
-
-for pool in pools:
-    print pool
-
 ioctx = cluster.open_ioctx('omap-test')
-
-print "\nListing objects in the pool"
-print "------------------"
-
-
-#n = 100
 
 print "\nBenchmarking synchronous omap ops"
 print "------------------"
@@ -119,17 +85,8 @@ rd = time.time()
 print "set (aio) " + str(n) + " omap pairs in " + str(wr - st) + "s"
 print "got (aio) " + str(n) + " omap pairs in " + str(rd - wr) + "s"
 
-
-
-
-
-print "\nClosing the connection."
 ioctx.close()
-
-print "\nDelete 'omap=test' Pool"
-print "------------------"
 cluster.delete_pool('omap-test')
-print "\nPool named 'omap-test' exists: " + str(cluster.pool_exists('omap-test'))
 
 
 
