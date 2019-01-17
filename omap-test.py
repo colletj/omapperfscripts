@@ -5,9 +5,9 @@
 
 import rados, sys, time, threading
 
-print("Running omap benchmarking tests");
+print("Running omap benchmarking tests")
 
-cluster = rados.Rados(conffile='/etc/ceph/ceph.conf');
+cluster = rados.Rados(conffile='/etc/ceph/ceph.conf')
 print "\nlibrados version: " + str(cluster.version())
 print "Will attempt to connect to: " + str(cluster.conf_get('mon initial members'))
 
@@ -44,80 +44,81 @@ pools = cluster.list_pools()
 for pool in pools:
     print pool
 
-ioctx = cluster.open_ioctx('omap-test');
+ioctx = cluster.open_ioctx('omap-test')
 
 print "\nListing objects in the pool"
 print "------------------"
 
 
-n=1000
-
+n = 100
 
 print "\nBenchmarking synchronous omap ops"
 print "------------------"
 
 st = time.time()
-with rados.WriteOpCtx(ioctx) as wop:
-    for i in range(0,n):
-        ioctx.set_omap(wop, (str(i),), ("val"+str(i),));
-        ioctx.operate_write_op(wop, "test");
+for i in range(0,n):
+    with rados.WriteOpCtx(ioctx) as wop:
+        ioctx.set_omap(wop, (str(i),), ("val"+str(i),))
+        ioctx.operate_write_op(wop, "test")
 
-
-wr = time.time();
+wr = time.time()
 
 with rados.ReadOpCtx(ioctx) as rop:
-    iter, r = ioctx.get_omap_vals(rop, "", "", n);
-    ioctx.operate_read_op(rop, "test");
+    iter, r = ioctx.get_omap_vals(rop, "", "", n)
+    ioctx.operate_read_op(rop, "test")
 
-rd = time.time();
+rd = time.time()
 
 print "set (sync) " + str(n) + " omap pairs in " + str(wr - st) + "s"
 print "got (sync) " + str(n) + " omap pairs in " + str(rd - wr) + "s"
 
+print "\nBenchmarking asynchronous omap ops"
+print "------------------"
 
+st = time.time()
+for i in range(0,n):
+    lock = threading.Condition()
+    count = [0]
+    def cb(blah):
+        with lock:
+            count[0] += 1
+            lock.notify()
+        return 0
+    
+    with rados.WriteOpCtx(ioctx) as wop:
+            ioctx.set_omap(wop, (str(i),), ("aio"+str(i),))
+            comp = ioctx.operate_aio_write_op(wop, "test", cb, cb)
+            comp.wait_for_complete()
+            comp.wait_for_safe()
+            with lock:
+                while count[0] < 2:
+                    lock.wait()
+            comp.get_return_value()
 
-#print "\nBenchmarking asynchronous omap ops"
-#print "------------------"
-#
-#
-#lock = threading.Condition();
-#count = [0];
-#def cb(blah):
-#    with lock:
-#        count[0] += 1;
-#        lock.notify();
-#    return 0;
-#
-#st = time.time()
-#with rados.WriteOpCtx(ioctx) as wop:
-#    for i in range(0,n):
-#        ioctx.set_omap(wop, (str(i),), ("val"+str(i),));
-#        comp = ioctx.operate_aio_write_op(wop, "test", cb, cb);
-#        comp.wait_for_complete();
-#        comp.wait_for_safe();
-#        with lock:
-#            while count[0] < 10:
-#                lock.wait();
-#        comp.get_return_value()
-#        
-#
-#wr = time.time();
-#
-##with rados.ReadOpCtx(ioctx) as rop:
-##    iter, r = ioctx.get_omap_vals(rop, "", "", n);
-##    ioctx.operate_read_op(rop, "test");
-#
-#rd = time.time();
-#
-#print "set (aio) " + str(n) + " omap pairs in " + str(wr - st) + "s"
-#print "got (aio) " + str(n) + " omap pairs in " + str(rd - wr) + "s"
+wr = time.time()
+
+count = [0]
+with rados.ReadOpCtx(ioctx) as rop:
+    iter, r = ioctx.get_omap_vals(rop, "", "", n)
+    ioctx.operate_aio_read_op(rop, "test", cb, cb)
+    comp.wait_for_complete()
+    comp.wait_for_safe()
+    with lock:
+        while count[0] < 2:
+            lock.wait()
+    comp.get_return_value()
+   
+rd = time.time()
+
+print "set (aio) " + str(n) + " omap pairs in " + str(wr - st) + "s"
+print "got (aio) " + str(n) + " omap pairs in " + str(rd - wr) + "s"
 
 
 
 
 
 print "\nClosing the connection."
-ioctx.close();
+ioctx.close()
 
 print "\nDelete 'omap=test' Pool"
 print "------------------"
