@@ -7,6 +7,12 @@ import rados, sys, time, threading
 
 print("Running omap benchmarking tests")
 
+if len(sys.argv) is 1:
+    print "No arg provided\nUsage: ./omap-test.py <num omap pairs>\nExiting..."
+    exit(-1); 
+
+n = int(sys.argv[1]);
+
 cluster = rados.Rados(conffile='/etc/ceph/ceph.conf')
 print "\nlibrados version: " + str(cluster.version())
 print "Will attempt to connect to: " + str(cluster.conf_get('mon initial members'))
@@ -50,7 +56,7 @@ print "\nListing objects in the pool"
 print "------------------"
 
 
-n = 100
+#n = 100
 
 print "\nBenchmarking synchronous omap ops"
 print "------------------"
